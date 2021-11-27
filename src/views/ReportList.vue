@@ -34,9 +34,9 @@
           <template slot-scope="scope">
             <el-tag
               size="medium"
-              :type="scope.row.status === 'uncompleted' ? 'primary' : 'danger'"
+              :type="scope.row.status === 'uncompleted' ? 'danger' : 'primary'"
             >
-              {{ scope.row.status === "uncompleted" ? "已完成" : "未完成" }}
+              {{ scope.row.status === "uncompleted" ? "未完成" : "已完成" }}
             </el-tag>
           </template>
         </el-table-column>

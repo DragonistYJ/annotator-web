@@ -32,7 +32,9 @@
         <!--    单词操作    -->
         <el-col :span="20">
           <el-popover
-            :ref="'popover-' + sentence['sentencce_id'] + '-' + token['word_id']"
+            :ref="
+              'popover-' + sentence['sentencce_id'] + '-' + token['word_id']
+            "
             placement="top"
             v-for="token in sentence['context']"
             :key="token['word_id']"
@@ -84,14 +86,26 @@
                   <el-button
                     slot="prepend"
                     size="mini"
-                    @click="insertWord(sentence['sentence_id'], token['newWord'], token['word_id'])"
+                    @click="
+                      addWord(
+                        sentence['sentence_id'],
+                        token['newWord'],
+                        token['word_id']
+                      )
+                    "
                   >
                     插入前
                   </el-button>
                   <el-button
                     slot="append"
                     size="mini"
-                    @click="insertWord( sentence['sentence_id'], token['newWord'], token['word_id'] + 1)"
+                    @click="
+                      addWord(
+                        sentence['sentence_id'],
+                        token['newWord'],
+                        token['word_id'] + 1
+                      )
+                    "
                   >
                     插入后
                   </el-button>
@@ -102,15 +116,15 @@
                 <el-button-group>
                   <el-button
                     size="small"
-                    v-if="token['id'] !== 0"
-                    @click="splitSentence(sentence['id'], token['id'])"
+                    v-if="token['word_id'] !== 0"
+                    @click="splitSentence(sentence['sentence_id'], token['word_id'])"
                   >
                     前分句
                   </el-button>
                   <el-button
                     size="small"
-                    v-if="token['id'] !== token.length - 1"
-                    @click="splitSentence(sentence['id'], token['id'] + 1)"
+                    v-if="token['word_id'] !== sentence['context'].length - 1"
+                    @click="splitSentence(sentence['sentence_id'],token['word_id'] + 1)"
                   >
                     后分句
                   </el-button>
@@ -156,13 +170,7 @@
             <el-button
               size="small"
               type="primary"
-              @click="
-                mergeSentence(
-                  sentence['reportId'],
-                  sentence['sequence'] - 1,
-                  sentence['sequence']
-                )
-              "
+              @click="mergeSentence(sentence['belong_document_id'],sentence['sequence'] - 1,sentence['sequence'])"
               v-show="sentence['sequence'] !== 0"
             >
               上句
@@ -170,14 +178,8 @@
             <el-button
               type="primary"
               size="small"
-              @click="
-                mergeSentence(
-                  sentence['reportId'],
-                  sentence['sequence'],
-                  sentence['sequence'] + 1
-                )
-              "
-              v-show="sentence['sequence'] !== sentences.length-1"
+              @click="mergeSentence(sentence['belong_document_id'],sentence['sequence'],sentence['sequence'] + 1)"
+              v-show="sentence['sequence'] !== sentences.length - 1"
             >
               下句
             </el-button>
@@ -185,8 +187,27 @@
             <el-button
               slot="reference"
               type="primary"
-            >合并</el-button>
+              size="small"
+            >
+              合并
+            </el-button>
           </el-popover>
+          <el-popconfirm
+            confirm-button-text='确认'
+            cancel-button-text='取消'
+            @confirm="deleteSentence(sentence['sentence_id'])"
+            icon="el-icon-info"
+            icon-color="red"
+            title="确认删除？"
+          >
+            <el-button
+              type="danger"
+              size="small"
+              slot="reference"
+            >
+              删除
+            </el-button>
+          </el-popconfirm>
         </el-col>
       </el-row>
 
@@ -298,7 +319,7 @@ export default {
         .then((response) => {});
     },
 
-    insertWord(sentenceId, word, wordId) {
+    addWord(sentenceId, word, wordId) {
       let data = JSON.stringify({
         sentence_id: sentenceId,
         word_id: wordId,
@@ -331,31 +352,82 @@ export default {
       });
     },
 
-    mergeSentence(sentenceReportId, sentenceSequence1, sentenceSequence2) {
-      let data = new FormData();
-      data.append("reportId", sentenceReportId);
-      data.append("sentenceSequence1", sentenceSequence1);
-      data.append("sentenceSequence2", sentenceSequence2);
+    mergeSentence(belong_document_id, sequence1, sequence2) {
+      let config = {
+        method: "post",
+        url:
+          "/annotator/sentence/merge?belong_document_id=" +
+          belong_document_id +
+          "&sequence1=" +
+          sequence1 +
+          "&sequence2=" +
+          sequence2,
+        headers: {},
+      };
 
-      this.$axios
-        .post("/main-backend/sentence/merge", data)
+      this.$axios(config)
         .then((response) => {
-          console.log(response);
           this.getSentences();
+          this.$message({
+            message: "合并句子成功",
+            type: "success",
+          });
+        })
+        .catch(function (error) {
+          this.getSentences();
+          this.$message({
+            message: "合并句子失败",
+            type: "error",
+          });
         });
     },
 
-    splitSentence(id, index) {
-      console.log(id, index);
-      let data = new FormData();
-      data.append("id", id);
-      data.append("index", index);
+    splitSentence(sentence_id, word_id) {
+      let config = {
+        method: "post",
+        url:
+          "/annotator/sentence/split?sentence_id=" +
+          sentence_id +
+          "&word_id=" +
+          word_id,
+      };
 
-      this.$axios
-        .post("/main-backend/sentence/split", data)
+      this.$axios(config)
         .then((response) => {
-          console.log(response);
           this.getSentences();
+          this.$message({
+            message: "拆分句子成功",
+            type: "success",
+          });
+        })
+        .catch((error) => {
+          this.$message({
+            message: "拆分句子失败",
+            type: "error",
+          });
+        });
+    },
+
+    deleteSentence(sentence_id) {
+      console.log(12);
+      let config = {
+        method: "post",
+        url: "/annotator/sentence/delete?sentence_id=" + sentence_id,
+      };
+
+      this.$axios(config)
+        .then((response) => {
+          this.getSentences();
+          this.$message({
+            message: "删除句子成功",
+            type: "success",
+          });
+        })
+        .catch((error) => {
+          this.$message({
+            message: "删除句子失败",
+            type: "error",
+          });
         });
     },
 
