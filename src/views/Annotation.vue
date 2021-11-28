@@ -1,21 +1,35 @@
 <template>
   <el-container>
     <el-header>
-      {{ document.name }}
-
-      <el-select
-        v-model="document['status']"
-        placeholder="请选择"
-        @change="statusChange"
+      <el-row
+        type="flex"
+        align="middle"
       >
-        <el-option
-          v-for="item in status"
-          :key="item.en"
-          :label="item.zh"
-          :value="item.en"
+        <el-col :span="15">
+          {{ document.name }}
+        </el-col>
+        <el-col :span="3">
+          <el-select
+            v-model="document['status']"
+            placeholder="请选择"
+            @change="statusChange"
+          >
+            <el-option
+              v-for="item in status"
+              :key="item.en"
+              :label="item.zh"
+              :value="item.en"
+            >
+            </el-option>
+          </el-select>
+        </el-col>
+        <el-col
+          :span="2"
+          :push="1"
         >
-        </el-option>
-      </el-select>
+          <el-button @click="addSentenceDialogVisible = true">添加句子</el-button>
+        </el-col>
+      </el-row>
     </el-header>
     <el-main>
       <el-row
@@ -32,9 +46,7 @@
         <!--    单词操作    -->
         <el-col :span="20">
           <el-popover
-            :ref="
-              'popover-' + sentence['sentencce_id'] + '-' + token['word_id']
-            "
+            :ref="'popover-' + sentence['sentencce_id'] + '-' + token['word_id']"
             placement="top"
             v-for="token in sentence['context']"
             :key="token['word_id']"
@@ -45,7 +57,7 @@
               :gutter="10"
             >
               <!--    单词修改    -->
-              <el-col :span="4">
+              <el-col :span="5">
                 <el-input
                   placeholder="请输入内容"
                   v-model="token['word']"
@@ -61,7 +73,7 @@
               </el-col>
 
               <!--    选择标签    -->
-              <el-col :span="4">
+              <el-col :span="3">
                 <el-select
                   v-model="token['label_id']"
                   placeholder="请选择"
@@ -132,8 +144,9 @@
               </el-col>
 
               <!--    更多选项删除单词    -->
-              <el-col :span="6">
+              <el-col :span="1">
                 <el-button
+                  :ref="'sentence-delete-' + sentence['sentencce_id']"
                   type="danger"
                   size="mini"
                   @click="deleteWord(sentence['sentence_id'], token['word_id'])"
@@ -165,7 +178,7 @@
         </el-col>
 
         <!--        右边按钮      -->
-        <el-col :span="3">
+        <el-col :span="1">
           <el-popover placement="top">
             <el-button
               size="small"
@@ -179,7 +192,7 @@
               type="primary"
               size="small"
               @click="mergeSentence(sentence['belong_document_id'],sentence['sequence'],sentence['sequence'] + 1)"
-              v-show="sentence['sequence'] !== sentences.length - 1"
+              v-show="sentence['sequence'] !== total_sentences - 1"
             >
               下句
             </el-button>
@@ -192,6 +205,8 @@
               合并
             </el-button>
           </el-popover>
+        </el-col>
+        <el-col :span="1">
           <el-popconfirm
             confirm-button-text='确认'
             cancel-button-text='取消'
@@ -218,10 +233,45 @@
         :page-sizes="[5, 10, 15, 20]"
         :page-size="pageSize"
         layout="total, sizes, prev, pager, next, jumper"
-        :total="sentences.length"
+        :total="total_sentences"
         background
       />
     </el-main>
+
+    <el-dialog
+      title="添加句子"
+      :visible.sync="addSentenceDialogVisible"
+    >
+      <el-form :model="newSentence">
+        <el-form-item label="插入位置">
+          <el-input-number
+            v-model="newSentence.sequence"
+            controls-position="right"
+            :min="0"
+            :max="total_sentences"
+          />
+        </el-form-item>
+        <el-form-item label="句子内容（空格分句）">
+          <el-input
+            v-model="newSentence.context"
+            type="textarea"
+            autocomplete="off"
+          />
+        </el-form-item>
+      </el-form>
+      <div
+        slot="footer"
+        class="dialog-footer"
+      >
+        <el-button @click="closeAddSentenceDialog()">取 消</el-button>
+        <el-button
+          type="primary"
+          @click="addSentence()"
+        >
+          确 定
+        </el-button>
+      </div>
+    </el-dialog>
   </el-container>
 </template>
 
@@ -239,6 +289,7 @@ export default {
         context: "",
       },
       sentences: [],
+      total_sentences: 0,
       id2label: {},
       labelOptions: [],
       status: [
@@ -246,7 +297,12 @@ export default {
         { zh: "完成", en: "completed" },
       ],
       currentPage: 1,
-      pageSize: 10,
+      pageSize: 5,
+      addSentenceDialogVisible: false,
+      newSentence: {
+        context: "",
+        sequence: 0,
+      },
     };
   },
   mounted() {
@@ -270,6 +326,7 @@ export default {
       }
     });
 
+    this.countSentences();
     this.getSentences();
   },
   methods: {
@@ -281,6 +338,23 @@ export default {
         )
         .then((response) => {
           this.document = response["data"][0];
+        });
+    },
+
+    countSentences() {
+      let config = {
+        method: "get",
+        url:
+          "/annotator/sentence/count?belong_document_id=" +
+          this.document.document_id,
+      };
+
+      this.$axios(config)
+        .then((response) => {
+          this.total_sentences = response.data["count"];
+        })
+        .catch((error) => {
+          console.log(error);
         });
     },
 
@@ -316,7 +390,12 @@ export default {
         .post("/annotator/sentence/update", data, {
           headers: { "Content-Type": "application/json" },
         })
-        .then((response) => {});
+        .then((response) => {
+          this.$message({
+            message: "修改成功",
+            type: "success",
+          });
+        });
     },
 
     addWord(sentenceId, word, wordId) {
@@ -362,23 +441,24 @@ export default {
           sequence1 +
           "&sequence2=" +
           sequence2,
-        headers: {},
       };
 
       this.$axios(config)
         .then((response) => {
-          this.getSentences();
           this.$message({
             message: "合并句子成功",
             type: "success",
           });
         })
         .catch(function (error) {
-          this.getSentences();
           this.$message({
             message: "合并句子失败",
             type: "error",
           });
+        })
+        .finally(() => {
+          this.countSentences();
+          this.getSentences();
         });
     },
 
@@ -394,7 +474,6 @@ export default {
 
       this.$axios(config)
         .then((response) => {
-          this.getSentences();
           this.$message({
             message: "拆分句子成功",
             type: "success",
@@ -405,11 +484,14 @@ export default {
             message: "拆分句子失败",
             type: "error",
           });
+        })
+        .finally(() => {
+          this.countSentences();
+          this.getSentences();
         });
     },
 
     deleteSentence(sentence_id) {
-      console.log(12);
       let config = {
         method: "post",
         url: "/annotator/sentence/delete?sentence_id=" + sentence_id,
@@ -417,7 +499,6 @@ export default {
 
       this.$axios(config)
         .then((response) => {
-          this.getSentences();
           this.$message({
             message: "删除句子成功",
             type: "success",
@@ -428,6 +509,10 @@ export default {
             message: "删除句子失败",
             type: "error",
           });
+        })
+        .finally(() => {
+          this.countSentences();
+          this.getSentences();
         });
     },
 
@@ -454,6 +539,47 @@ export default {
     handleCurrentChange(val) {
       this.currentPage = val;
       this.getSentences();
+    },
+
+    closeAddSentenceDialog() {
+      this.addSentenceDialogVisible = false;
+      this.newSentence = { context: "", sequence: 0 };
+    },
+
+    addSentence() {
+      let data = JSON.stringify({
+        context: this.newSentence.context,
+        sequence: this.newSentence.sequence,
+        belong_document_id: this.document.document_id,
+      });
+
+      let config = {
+        method: "post",
+        url: "/annotator/sentence/add",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        data: data,
+      };
+
+      this.$axios(config)
+        .then((response) => {
+          this.$message({
+            message: "添加句子成功",
+            type: "success",
+          });
+        })
+        .catch((error) => {
+          this.$message({
+            message: "添加句子失败",
+            type: "error",
+          });
+        })
+        .finally(() => {
+          this.countSentences();
+          this.getSentences();
+          this.closeAddSentenceDialog();
+        });
     },
   },
 };

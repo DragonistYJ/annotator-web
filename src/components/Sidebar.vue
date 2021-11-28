@@ -14,7 +14,7 @@
           <i class="el-icon-message"></i>
           <span>NER标注</span>
         </template>
-        <el-menu-item index="1-1" @click="toReportList">APT报告列表</el-menu-item>
+        <el-menu-item index="1-1" @click="toReportList">文档列表</el-menu-item>
       </el-submenu>
     </el-menu>
   </div>

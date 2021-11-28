@@ -9,7 +9,7 @@
         </el-col>
 
         <el-col :span="4" :push="1">
-          <el-button @click="openDocumentDialogAdd()">上传报告</el-button>
+          <el-button @click="openDocumentDialogAdd()">上传文档</el-button>
         </el-col>
       </el-row>
 
@@ -61,6 +61,7 @@
         </el-table-column>
       </el-table>
 
+      <br/>
       <el-row>
         <el-pagination
           @size-change="onSizeChange"
